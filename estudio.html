@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mini Estudio Pro: Editor Universal HTML + Audio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: #090d16; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
+
+    header { background: #111827; padding: 8px 16px; border-bottom: 1px solid #1f2937; display: flex; justify-content: space-between; align-items: center; }
+    .group { display: flex; gap: 8px; align-items: center; }
+    .btn { background: #2563eb; color: #fff; border: 1px solid transparent; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
+    .btn:hover { background: #1d4ed8; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-sec { background: #1f2937; border-color: #374151; color: #cbd5e1; }
+    .btn-sec:hover:not(:disabled) { background: #374151; color: #fff; }
+    .btn-active { background: #f59e0b !important; color: #000 !important; border-color: #fbbf24 !important; }
+    .btn-danger { background: #7f1d1d; color: #fecaca; }
+    .btn-danger:hover { background: #991b1b; }
+    .btn-export { background: #10b981; color: #052e16; }
+    .btn-export:hover { background: #059669; color: #fff; }
+    input[type="file"] { display: none; }
+
+    .workspace { flex: 1; display: flex; overflow: hidden; }
+    .preview-area { flex: 1; display: flex; justify-content: center; align-items: center; background: #05080f; padding: 12px; position: relative; }
+    
+    /* Tamaño idéntico al que sí mostró el mapa en tu captura anterior */
+    .phone-frame { aspect-ratio: 9 / 16; height: 100%; max-height: 540px; border: 2px solid #334155; border-radius: 10px; overflow: hidden; background: #0a0f18; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+    iframe { width: 100%; height: 100%; border: none; display: block; background: #0a0f18; }
+
+    .inspector { width: 310px; background: #111827; border-left: 1px solid #1f2937; padding: 14px; overflow-y: auto; font-size: 12px; }
+    .inspector h3 { font-size: 12px; text-transform: uppercase; color: #94a3b8; margin-bottom: 10px; letter-spacing: 0.5px; }
+    .prop-box { background: #1f2937; padding: 10px; border-radius: 6px; margin-bottom: 12px; border-left: 3px solid #38bdf8; }
+    .prop-row { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+    .prop-row input { width: 75px; background: #090d16; border: 1px solid #374151; color: #fff; padding: 3px 6px; border-radius: 4px; text-align: right; }
+    .help-list { color: #94a3b8; line-height: 1.6; margin-top: 8px; padding-left: 14px; }
+
+    .timeline-panel { height: 275px; background: #0f172a; border-top: 1px solid #1e293b; display: flex; flex-direction: column; }
+    .toolbar { padding: 8px 16px; background: #111827; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .time-readout { font-family: monospace; font-size: 13px; color: #38bdf8; background: #090d16; padding: 4px 10px; border-radius: 4px; border: 1px solid #1e293b; }
+
+    .timeline-scroll { flex: 1; position: relative; overflow-x: auto; overflow-y: hidden; background: #070a12; }
+    .timeline-inner { position: relative; height: 100%; min-width: 100%; }
+    
+    .ruler { height: 24px; background: #0f172a; border-bottom: 1px solid #1e293b; position: relative; cursor: pointer; }
+    .ruler-mark { position: absolute; top: 0; bottom: 0; border-left: 1px solid #334155; font-size: 10px; color: #64748b; padding-left: 4px; padding-top: 4px; pointer-events: none; }
+
+    .track { height: 90px; border-bottom: 1px solid #1e293b; position: relative; background: #090d16; }
+    .track-title { position: sticky; left: 8px; top: 4px; font-size: 10px; font-weight: 700; color: #64748b; z-index: 4; pointer-events: none; text-transform: uppercase; }
+    .empty-hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #334155; font-size: 12px; pointer-events: none; }
+
+    .clip { position: absolute; top: 20px; height: 62px; border-radius: 5px; overflow: hidden; cursor: grab; display: flex; flex-direction: column; justify-content: space-between; padding: 4px 10px; font-size: 11px; box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+    .clip:active { cursor: grabbing; }
+    .clip.video-clip { background: rgba(37, 99, 235, 0.38); border: 1px solid #3b82f6; color: #dbeafe; }
+    .clip.audio-clip { background: rgba(16, 185, 129, 0.25); border: 1px solid #10b981; color: #d1fae5; }
+    .clip.selected { outline: 2px solid #fbbf24; z-index: 6; }
+
+    .clip-header { display: flex; justify-content: space-between; font-weight: 600; font-size: 10px; z-index: 2; pointer-events: none; text-shadow: 0 1px 2px #000; }
+    .clip-wave { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0.85; }
+
+    .handle { position: absolute; top: 0; bottom: 0; width: 9px; background: rgba(255,255,255,0.18); cursor: ew-resize; z-index: 5; }
+    .handle:hover { background: #fbbf24; }
+    .handle.left { left: 0; border-right: 1px solid rgba(0,0,0,0.4); }
+    .handle.right { right: 0; border-left: 1px solid rgba(0,0,0,0.4); }
+
+    #playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #ef4444; z-index: 20; pointer-events: none; left: 0px; }
+    #playhead::before { content: ''; position: absolute; top: 0; left: -5px; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid #ef4444; }
+
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(5, 8, 15, 0.85); backdrop-filter: blur(4px); z-index: 100; display: none; justify-content: center; align-items: center; }
+    .modal-box { background: #111827; border: 1px solid #334155; border-radius: 12px; width: 460px; padding: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
+    .modal-title { font-size: 15px; font-weight: 700; color: #f8fafc; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+    .gpu-badge { display: inline-block; background: rgba(16, 185, 129, 0.18); border: 1px solid #10b981; color: #34d399; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px; margin-bottom: 14px; }
+    .progress-track { width: 100%; height: 12px; background: #090d16; border: 1px solid #1e293b; border-radius: 999px; overflow: hidden; margin: 10px 0; }
+    .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #10b981, #38bdf8); transition: width 0.2s ease; }
+    .modal-status { font-size: 12px; color: #cbd5e1; font-family: monospace; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="group">
+      <strong style="font-size:14px; margin-right:6px;">🎬 Mini Estudio HTML + Audio</strong>
+      <label class="btn btn-sec">
+        1. Cargar Animación (.html)
+        <input type="file" id="htmlInput" accept=".html" />
+      </label>
+      <label class="btn btn-sec">
+        2. Cargar Voz (.wav/.mp3)
+        <input type="file" id="audioInput" accept="audio/*" />
+      </label>
+      <label class="btn btn-sec" title="Cargar un proyecto_editado.json guardado previamente">
+        📂 Cargar .JSON
+        <input type="file" id="jsonInput" accept=".json" />
+      </label>
+      <button class="btn btn-sec" id="resetClipsBtn" title="Reiniciar recortes a los 55s originales">🔄 Reiniciar Pistas</button>
+    </div>
+    <div class="group">
+      <button class="btn btn-sec" id="undoBtn" disabled title="Deshacer (Ctrl+Z)">↩️ Deshacer (Ctrl+Z)</button>
+      <button class="btn btn-sec" id="redoBtn" disabled title="Rehacer (Ctrl+Y)">↪️ Rehacer</button>
+      <button class="btn btn-sec" id="exportJsonBtn" title="Guardar respaldo .json">📄 .JSON</button>
+      <button class="btn btn-export" id="exportBtn">🚀 Exportar Video MP4 (GPU)</button>
+    </div>
+  </header>
+
+  <div class="modal-backdrop" id="renderModal">
+    <div class="modal-box">
+      <div class="modal-title" id="renderModalTitle">🎬 Renderizando Video Final (1080x1920 · 30 FPS)</div>
+      <div class="gpu-badge" id="renderGpuBadge">🎮 Detectando GPU NVIDIA RTX...</div>
+      <div class="progress-track">
+        <div class="progress-fill" id="renderProgressFill"></div>
+      </div>
+      <div class="modal-status" id="renderStatusText">Preparando motor...</div>
+      <div style="display:flex; justify-content:flex-end; gap:8px;">
+        <a id="downloadMp4Btn" class="btn btn-export" style="display:none; text-decoration:none;" href="http://localhost:3456/api/download" download="video_final.mp4">⬇️ Descargar video_final.mp4</a>
+        <button class="btn btn-sec" id="closeModalBtn" style="display:none;">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="workspace">
+    <div class="preview-area">
+      <div class="phone-frame" id="phoneFrame">
+        <iframe id="animFrame"></iframe>
+      </div>
+    </div>
+
+    <div class="inspector">
+      <h3>Clip Seleccionado</h3>
+      <div id="clipInspector" class="prop-box">
+        <div style="color:#94a3b8;">Importa un archivo .html o un audio .wav para empezar.</div>
+      </div>
+
+      <h3>Atajos de Edición Rápida</h3>
+      <ul class="help-list">
+        <li><strong>Ctrl + Z / Ctrl + Y:</strong> Deshacer / Rehacer</li>
+        <li><strong>Espacio:</strong> Play / Pause</li>
+        <li><strong>Tecla S:</strong> Cortar clip en la aguja roja</li>
+        <li><strong>Modo Warp ON:</strong> Arrastrar borde estira/comprime cambiando la velocidad.</li>
+        <li><strong>Modo Trim (Warp OFF):</strong> Arrastrar borde recorta sin cambiar velocidad.</li>
+        <li><strong>Supr / Backspace:</strong> Borrar clip seleccionado.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="timeline-panel">
+    <div class="toolbar">
+      <div class="group">
+        <button class="btn" id="playBtn">▶ Play (Espacio)</button>
+        <button class="btn btn-sec" id="stopBtn">⏮ 0:00</button>
+        <span style="color:#334155;">|</span>
+        <button class="btn btn-sec" id="splitBtn">✂️ Cortar en Aguja (S)</button>
+        <button class="btn btn-active" id="warpToggleBtn">↔️ Modo: WARP (Estirar Velocidad)</button>
+        <button class="btn btn-danger" id="deleteBtn">🗑️ Borrar Clip</button>
+        <button class="btn btn-sec" id="rippleBtn">🧲 Pegar Huecos</button>
+      </div>
+
+      <div class="group">
+        <label style="font-size:11px; color:#94a3b8;">Zoom:</label>
+        <input type="range" id="zoomSlider" min="10" max="80" value="22" style="width:90px;">
+        <div class="time-readout">
+          Aguja: <span id="uiTime">0.00</span>s | GSAP: <span id="uiGsap">0.00</span>s
+        </div>
+      </div>
+    </div>
+
+    <div class="timeline-scroll" id="timelineScroll">
+      <div class="timeline-inner" id="timelineInner">
+        <div id="playhead"></div>
+        <div class="ruler" id="ruler"></div>
+
+        <div class="track" id="videoTrack">
+          <span class="track-title">Pista 1 · Video HTML (GSAP)</span>
+          <div class="empty-hint" id="videoEmptyHint">Carga un archivo .html arriba para crear la pista de video</div>
+        </div>
+
+        <div class="track" id="audioTrack">
+          <span class="track-title">Pista 2 · Narración Voz (Waveform)</span>
+          <div class="empty-hint" id="audioEmptyHint">Carga un archivo .wav/.mp3 arriba para crear la pista de audio</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const animFrame = document.getElementById('animFrame');
+    const timelineInner = document.getElementById('timelineInner');
+    const ruler = document.getElementById('ruler');
+    const videoTrack = document.getElementById('videoTrack');
+    const audioTrack = document.getElementById('audioTrack');
+    const playhead = document.getElementById('playhead');
+    const clipInspector = document.getElementById('clipInspector');
+    const undoBtn = document.getElementById('undoBtn');
+    const redoBtn = document.getElementById('redoBtn');
+
+    let pxPerSec = 22;
+    let isWarpMode = true;
+    let isPlaying = false;
+    let currentTime = 0;
+    let lastRafTimestamp = 0;
+    let selectedClipId = null;
+    let currentHtmlFileName = 'Video HTML';
+    let currentHtmlFileFull = '';
+    let currentAudioFileFull = '';
+    let loadedHtmlRawText = '';
+    let loadedAudioBase64 = '';
+
+    let mediaAudio = new Audio();
+    let audioBuffer = null;
+    let rawPeaks = [];
+
+    let videoClips = [];
+    let audioClips = [];
+
+    let historyStack = [];
+    let redoStack = [];
+
+    function saveHistory() {
+      const snapshot = JSON.stringify({ videoClips, audioClips, selectedClipId });
+      if (historyStack.length > 0 && historyStack[historyStack.length - 1] === snapshot) return;
+      historyStack.push(snapshot);
+      if (historyStack.length > 50) historyStack.shift();
+      redoStack = [];
+      updateUndoRedoButtons();
+      try {
+        localStorage.setItem('__estudio_autosave_clips', JSON.stringify({
+          htmlFile: currentHtmlFileFull,
+          audioFile: currentAudioFileFull,
+          videoClips,
+          audioClips
+        }));
+      } catch (e) {}
+    }
+
+    function undo() {
+      if (historyStack.length <= 1) return;
+      redoStack.push(historyStack.pop());
+      const prev = JSON.parse(historyStack[historyStack.length - 1]);
+      videoClips = prev.videoClips;
+      audioClips = prev.audioClips;
+      selectedClipId = prev.selectedClipId;
+      updateUndoRedoButtons();
+      renderTimeline();
+      syncFrameToCurrentTime();
+    }
+
+    function redo() {
+      if (redoStack.length === 0) return;
+      const nextStr = redoStack.pop();
+      historyStack.push(nextStr);
+      const next = JSON.parse(nextStr);
+      videoClips = next.videoClips;
+      audioClips = next.audioClips;
+      selectedClipId = next.selectedClipId;
+      updateUndoRedoButtons();
+      renderTimeline();
+      syncFrameToCurrentTime();
+    }
+
+    function updateUndoRedoButtons() {
+      undoBtn.disabled = historyStack.length <= 1;
+      redoBtn.disabled = redoStack.length === 0;
+    }
+
+    undoBtn.addEventListener('click', undo);
+    redoBtn.addEventListener('click', redo);
+
+    function getSelectedClip() {
+      return [...videoClips, ...audioClips].find(c => c.id === selectedClipId) || null;
+    }
+
+    // Escuchar confirmación desde el interior del iframe vía postMessage
+    window.addEventListener('message', (e) => {
+      if (!e.data || typeof e.data !== 'object') return;
+      if (e.data.type === 'HTML_READY') {
+        const dur = parseFloat((e.data.duration || 55).toFixed(2));
+        if (videoClips.length === 0) {
+          videoClips = [
+            {
+              id: 'v_' + Date.now(),
+              type: 'video',
+              name: currentHtmlFileName,
+              timelineStart: 0,
+              duration: dur,
+              sourceStart: 0,
+              sourceEnd: dur
+            }
+          ];
+          selectedClipId = videoClips[0].id;
+          saveHistory();
+          renderTimeline();
+        } else if (videoClips.length === 1 && videoClips[0].sourceStart === 0 && videoClips[0].sourceEnd === 55 && dur !== 55) {
+          videoClips[0].duration = dur;
+          videoClips[0].sourceEnd = dur;
+          saveHistory();
+          renderTimeline();
+        }
+        syncFrameToCurrentTime();
+      }
+    });
+
+    // 1. CARGAR EL HTML USANDO SRCDOC + PUENTE UNIVERSAL POSTMESSAGE
+    document.getElementById('htmlInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      currentHtmlFileFull = file.name;
+      currentHtmlFileName = file.name.replace(/\.html$/i, '');
+      let htmlText = await file.text();
+      loadedHtmlRawText = htmlText;
+
+      // Solo conservar los clips si corresponden al mismo archivo HTML; si es un archivo HTML nuevo, crear clip limpio
+      const isSameHtml = videoClips.length > 0 && videoClips[0].name.replace(/\s*\(\d+\)$/, '') === currentHtmlFileName;
+      if (!isSameHtml) {
+        videoClips = [
+          {
+            id: 'v_' + Date.now(),
+            type: 'video',
+            name: currentHtmlFileName,
+            timelineStart: 0,
+            duration: 55,
+            sourceStart: 0,
+            sourceEnd: 55
+          }
+        ];
+        selectedClipId = videoClips[0].id;
+        saveHistory();
+        renderTimeline();
+      }
+
+      // Puente universal para animaciones de Claude (GSAP + #seek max=1000 / cualquier escala + ocultar #bar en exportación)
+      const bridgeScript = `
+        <script>
+          (function() {
+            window.__capturedTimelines = [];
+            let startedOnce = false;
+            let reportedReady = false;
+
+            function installGsapHook() {
+              if (!window.gsap || window.__hookInstalled) return;
+              window.__hookInstalled = true;
+              const origTimeline = window.gsap.timeline;
+              window.gsap.timeline = function(vars) {
+                const tl = origTimeline.call(window.gsap, vars);
+                window.__capturedTimelines.push(tl);
+                setTimeout(reportReadyIfPossible, 50);
+                return tl;
+              };
+            }
+
+            function getMasterTimelines() {
+              if (!window.gsap) return [];
+              const candidates = [
+                ...(window.__capturedTimelines || []),
+                ...(window.gsap.globalTimeline ? window.gsap.globalTimeline.getChildren(false, false, true) : []),
+                window.tl, window.mainTl, window.masterTl, window.timeline
+              ].filter(Boolean);
+              // Filtrar timelines principales (suelen durar > 3s; nota: repeat:-1 hace que totalDuration sea gigante, pero duration() es 55s)
+              const unique = Array.from(new Set(candidates));
+              return unique.filter(t => {
+                try {
+                  const d = typeof t.duration === 'function' ? t.duration() : 0;
+                  return d >= 3 && d < 3600;
+                } catch (err) { return false; }
+              });
+            }
+
+            function detectDuration() {
+              const tls = getMasterTimelines();
+              if (tls.length > 0) {
+                return tls[0].duration();
+              }
+              if (typeof D === 'number' && D > 0) return D;
+              const tmEl = document.querySelector('#tm, [id*="time" i], [class*="time" i]');
+              if (tmEl) {
+                const txt = tmEl.textContent || '';
+                const parts = txt.split('/');
+                if (parts.length > 1) {
+                  const m = parts[1].trim().match(/(\\d+):(\\d+)/);
+                  if (m) return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+                }
+              }
+              return 55;
+            }
+
+            function reportReadyIfPossible() {
+              const tls = getMasterTimelines();
+              if (tls.length > 0 && !reportedReady) {
+                reportedReady = true;
+                window.parent.postMessage({ type: 'HTML_READY', duration: detectDuration() }, '*');
+              }
+            }
+
+            installGsapHook();
+            document.addEventListener('DOMContentLoaded', installGsapHook);
+            window.addEventListener('load', () => {
+              installGsapHook();
+              let checks = 0;
+              const poll = setInterval(() => {
+                checks++;
+                reportReadyIfPossible();
+                if (reportedReady || checks > 40) {
+                  clearInterval(poll);
+                  if (!reportedReady) {
+                    reportedReady = true;
+                    window.parent.postMessage({ type: 'HTML_READY', duration: detectDuration() }, '*');
+                  }
+                }
+              }, 100);
+            });
+
+            function hideStartOverlay() {
+              const ov = document.getElementById('ov') || document.querySelector('[id*="overlay" i], [class*="overlay" i]');
+              if (ov) {
+                ov.style.display = 'none';
+              }
+              if (!startedOnce) {
+                startedOnce = true;
+                const candidates = Array.from(document.querySelectorAll('button, [id*="start" i], [class*="start" i], div, span'));
+                for (const el of candidates) {
+                  const txt = (el.textContent || '').trim().toLowerCase();
+                  if (txt === 'toca para iniciar' || txt === 'iniciar') {
+                    el.click();
+                    if (el.parentElement) el.parentElement.click();
+                    break;
+                  }
+                }
+              }
+            }
+
+            function setControlsVisible(visible) {
+              const bar = document.getElementById('bar') || document.querySelector('[id*="control" i], [class*="control-bar" i], footer');
+              if (bar) {
+                bar.style.display = visible ? '' : 'none';
+              }
+              if (typeof fit === 'function') {
+                try { fit(); } catch (e) {}
+              }
+              window.dispatchEvent(new Event('resize'));
+            }
+
+            function seekAnimation(sec, totalFallback) {
+              hideStartOverlay();
+
+              const tls = getMasterTimelines();
+              const nativeDur = tls.length > 0 ? tls[0].duration() : (typeof D === 'number' ? D : (totalFallback || 55));
+              const clampedSec = Math.max(0, Math.min(nativeDur, sec));
+
+              // 1. Si existe el slider #seek (o cualquier input[type="range"]), calcular proporción exacta sobre su propio min/max (ej. 0 a 1000)
+              const rangeInput = document.getElementById('seek') || document.querySelector('input[type="range"]');
+              if (rangeInput) {
+                const min = parseFloat(rangeInput.min) || 0;
+                const max = parseFloat(rangeInput.max) || 100;
+                const ratio = nativeDur > 0 ? (clampedSec / nativeDur) : 0;
+                rangeInput.value = min + ratio * (max - min);
+                rangeInput.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+
+              // 2. Posicionar directamente cualquier timeline de GSAP en el segundo exacto y actualizar su UI
+              tls.forEach(t => {
+                try {
+                  t.pause();
+                  t.time(clampedSec, false);
+                } catch (err) {}
+              });
+
+              if (typeof ui === 'function') {
+                try { ui(); } catch (err) {}
+              }
+            }
+
+            // Exponer funciones globales para Puppeteer (render_mp4.js) y depuración directa
+            window.__estudioSeek = seekAnimation;
+            window.__estudioSetExportMode = function(isExport) {
+              hideStartOverlay();
+              setControlsVisible(!isExport);
+            };
+
+            window.addEventListener('message', (ev) => {
+              if (!ev.data || typeof ev.data !== 'object') return;
+              if (ev.data.type === 'SEEK_HTML') {
+                if (typeof ev.data.exportMode === 'boolean') {
+                  setControlsVisible(!ev.data.exportMode);
+                }
+                seekAnimation(ev.data.time, ev.data.total);
+              } else if (ev.data.type === 'SET_EXPORT_MODE') {
+                setControlsVisible(!ev.data.exportMode);
+              }
+            });
+          })();
+        <\/script>
+      `;
+
+      // Inyectar justo antes de </body> para que window.gsap y las variables del script ya existan
+      if (htmlText.includes('</body>')) {
+        htmlText = htmlText.replace('</body>', bridgeScript + '</body>');
+      } else {
+        htmlText = htmlText + bridgeScript;
+      }
+
+      animFrame.srcdoc = htmlText;
+    });
+
+    // 2. CARGAR AUDIO
+    document.getElementById('audioInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      currentAudioFileFull = file.name;
+      mediaAudio.src = URL.createObjectURL(file);
+
+      const reader = new FileReader();
+      reader.onload = () => { loadedAudioBase64 = reader.result; };
+      reader.readAsDataURL(file);
+
+      const arrayBuffer = await file.arrayBuffer();
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+      const channel = audioBuffer.getChannelData(0);
+      const samplesPerPeak = Math.floor(audioBuffer.sampleRate / 100);
+      rawPeaks = [];
+      for (let i = 0; i < channel.length; i += samplesPerPeak) {
+        let max = 0;
+        for (let j = 0; j < samplesPerPeak && (i + j) < channel.length; j++) {
+          const v = Math.abs(channel[i + j]);
+          if (v > max) max = v;
+        }
+        rawPeaks.push(max);
+      }
+
+      const dur = parseFloat(audioBuffer.duration.toFixed(2));
+      const newAudioName = file.name.replace(/\.(wav|mp3|ogg)$/i, '');
+      const isSameAudio = audioClips.length > 0 && audioClips[0].name.replace(/\s*\(\d+\)$/, '') === newAudioName;
+      if (!isSameAudio) {
+        audioClips = [
+          {
+            id: 'a_' + Date.now(),
+            type: 'audio',
+            name: newAudioName,
+            timelineStart: 0,
+            duration: dur,
+            sourceStart: 0,
+            sourceEnd: dur
+          }
+        ];
+        selectedClipId = audioClips[0].id;
+      }
+      saveHistory();
+      renderTimeline();
+    });
+
+    // 3. TIMELINE DINÁMICO
+    function getTotalDuration() {
+      let max = 60;
+      [...videoClips, ...audioClips].forEach(c => {
+        if (c.timelineStart + c.duration + 10 > max) max = c.timelineStart + c.duration + 10;
+      });
+      return max;
+    }
+
+    function renderTimeline() {
+      const totalSec = getTotalDuration();
+      timelineInner.style.width = `${totalSec * pxPerSec}px`;
+
+      document.getElementById('videoEmptyHint').style.display = videoClips.length ? 'none' : 'flex';
+      document.getElementById('audioEmptyHint').style.display = audioClips.length ? 'none' : 'flex';
+
+      ruler.innerHTML = '';
+      for (let s = 0; s <= totalSec; s += 2) {
+        const mark = document.createElement('div');
+        mark.className = 'ruler-mark';
+        mark.style.left = `${s * pxPerSec}px`;
+        mark.textContent = `${s}s`;
+        ruler.appendChild(mark);
+      }
+
+      videoTrack.querySelectorAll('.clip').forEach(e => e.remove());
+      audioTrack.querySelectorAll('.clip').forEach(e => e.remove());
+
+      videoClips.forEach(clip => createClipElement(clip, videoTrack));
+      audioClips.forEach(clip => createClipElement(clip, audioTrack));
+
+      updatePlayheadUI();
+      renderInspector();
+    }
+
+    function createClipElement(clip, trackEl) {
+      const el = document.createElement('div');
+      el.className = `clip ${clip.type}-clip ${selectedClipId === clip.id ? 'selected' : ''}`;
+      el.style.left = `${clip.timelineStart * pxPerSec}px`;
+      el.style.width = `${Math.max(8, clip.duration * pxPerSec)}px`;
+
+      const speed = ((clip.sourceEnd - clip.sourceStart) / Math.max(0.05, clip.duration)).toFixed(2);
+      el.innerHTML = `
+        <div class="handle left"></div>
+        <div class="clip-header">
+          <span>${clip.name}</span>
+          <span>${speed}x</span>
+        </div>
+        <div style="font-size:9px; opacity:0.85; z-index:2; pointer-events:none;">
+          Src: ${clip.sourceStart.toFixed(1)}s - ${clip.sourceEnd.toFixed(1)}s
+        </div>
+        <div class="handle right"></div>
+      `;
+
+      if (clip.type === 'audio' && rawPeaks.length > 0) {
+        const canvas = document.createElement('canvas');
+        canvas.className = 'clip-wave';
+        const w = Math.max(10, Math.floor(clip.duration * pxPerSec));
+        canvas.width = w;
+        canvas.height = 60;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#34d399';
+        const startIdx = Math.floor(clip.sourceStart * 100);
+        const endIdx = Math.floor(clip.sourceEnd * 100);
+        const count = Math.max(1, endIdx - startIdx);
+
+        for (let x = 0; x < w; x++) {
+          const peakIdx = startIdx + Math.floor((x / w) * count);
+          const amp = (rawPeaks[peakIdx] || 0) * 52;
+          ctx.fillRect(x, 30 - amp / 2, 1, Math.max(2, amp));
+        }
+        el.appendChild(canvas);
+      }
+
+      setupClipInteractions(el, clip);
+      trackEl.appendChild(el);
+    }
+
+    function setupClipInteractions(el, clip) {
+      el.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        selectedClipId = clip.id;
+        renderTimeline();
+
+        const isLeftHandle = e.target.classList.contains('left');
+        const isRightHandle = e.target.classList.contains('right');
+        const startX = e.clientX;
+        const origTimelineStart = clip.timelineStart;
+        const origDuration = clip.duration;
+        const origSourceStart = clip.sourceStart;
+        const origSourceEnd = clip.sourceEnd;
+        const origSpeed = (origSourceEnd - origSourceStart) / origDuration;
+        let moved = false;
+
+        function onMove(ev) {
+          moved = true;
+          const deltaSec = (ev.clientX - startX) / pxPerSec;
+
+          if (isRightHandle) {
+            const newDur = Math.max(0.2, origDuration + deltaSec);
+            clip.duration = parseFloat(newDur.toFixed(2));
+            if (!isWarpMode) {
+              clip.sourceEnd = parseFloat(Math.max(clip.sourceStart + 0.2, origSourceStart + newDur * origSpeed).toFixed(2));
+            }
+          } else if (isLeftHandle) {
+            const maxDelta = origDuration - 0.2;
+            const clampedDelta = Math.min(maxDelta, Math.max(-origTimelineStart, deltaSec));
+            clip.timelineStart = parseFloat((origTimelineStart + clampedDelta).toFixed(2));
+            clip.duration = parseFloat((origDuration - clampedDelta).toFixed(2));
+            if (!isWarpMode) {
+              clip.sourceStart = parseFloat(Math.max(0, origSourceStart + clampedDelta * origSpeed).toFixed(2));
+            }
+          } else {
+            clip.timelineStart = parseFloat(Math.max(0, origTimelineStart + deltaSec).toFixed(2));
+          }
+          renderTimeline();
+          syncFrameToCurrentTime();
+        }
+
+        function onUp() {
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onUp);
+          if (moved) saveHistory();
+        }
+
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+      });
+    }
+
+    // 4. SINCRONIZACIÓN
+    function getActiveClipAt(clipsList, t) {
+      return clipsList.find(c => t >= c.timelineStart && t <= (c.timelineStart + c.duration));
+    }
+
+    function mapTimelineToSource(clip, t) {
+      const progress = (t - clip.timelineStart) / Math.max(0.01, clip.duration);
+      return clip.sourceStart + progress * (clip.sourceEnd - clip.sourceStart);
+    }
+
+    function syncFrameToCurrentTime() {
+      updatePlayheadUI();
+
+      const vClip = getActiveClipAt(videoClips, currentTime);
+      if (vClip && animFrame.contentWindow) {
+        const targetGsapSec = mapTimelineToSource(vClip, currentTime);
+        animFrame.contentWindow.postMessage({ type: 'SEEK_HTML', time: targetGsapSec, total: vClip.sourceEnd }, '*');
+        document.getElementById('uiGsap').textContent = targetGsapSec.toFixed(2);
+      }
+
+      const aClip = getActiveClipAt(audioClips, currentTime);
+      if (aClip && mediaAudio.src) {
+        const targetAudioSec = mapTimelineToSource(aClip, currentTime);
+        const clipSpeed = (aClip.sourceEnd - aClip.sourceStart) / Math.max(0.05, aClip.duration);
+        mediaAudio.playbackRate = Math.max(0.25, Math.min(3.0, clipSpeed));
+
+        if (Math.abs(mediaAudio.currentTime - targetAudioSec) > 0.18) {
+          mediaAudio.currentTime = targetAudioSec;
+        }
+        if (isPlaying && mediaAudio.paused) {
+          mediaAudio.play().catch(() => {});
+        }
+      } else {
+        if (!mediaAudio.paused) mediaAudio.pause();
+      }
+    }
+
+    function updatePlayheadUI() {
+      playhead.style.left = `${currentTime * pxPerSec}px`;
+      document.getElementById('uiTime').textContent = currentTime.toFixed(2);
+    }
+
+    function playbackLoop(timestamp) {
+      if (!isPlaying) return;
+      if (!lastRafTimestamp) lastRafTimestamp = timestamp;
+      const dt = (timestamp - lastRafTimestamp) / 1000;
+      lastRafTimestamp = timestamp;
+
+      currentTime += dt;
+      syncFrameToCurrentTime();
+
+      const maxEnd = Math.max(
+        ...videoClips.map(c => c.timelineStart + c.duration),
+        ...audioClips.map(c => c.timelineStart + c.duration),
+        5
+      );
+
+      if (currentTime >= maxEnd) {
+        pausePlayback();
+      } else {
+        requestAnimationFrame(playbackLoop);
+      }
+    }
+
+    function togglePlay() {
+      if (isPlaying) {
+        pausePlayback();
+      } else {
+        isPlaying = true;
+        lastRafTimestamp = 0;
+        document.getElementById('playBtn').textContent = '⏸ Pause (Espacio)';
+        syncFrameToCurrentTime();
+        requestAnimationFrame(playbackLoop);
+      }
+    }
+
+    function pausePlayback() {
+      isPlaying = false;
+      mediaAudio.pause();
+      document.getElementById('playBtn').textContent = '▶ Play (Espacio)';
+    }
+
+    document.getElementById('playBtn').addEventListener('click', togglePlay);
+    document.getElementById('stopBtn').addEventListener('click', () => {
+      pausePlayback();
+      currentTime = 0;
+      syncFrameToCurrentTime();
+    });
+
+    function seekFromMouse(e) {
+      const rect = timelineInner.getBoundingClientRect();
+      const x = Math.max(0, e.clientX - rect.left);
+      currentTime = parseFloat((x / pxPerSec).toFixed(2));
+      syncFrameToCurrentTime();
+    }
+
+    ruler.addEventListener('mousedown', (e) => {
+      seekFromMouse(e);
+      const onMove = (ev) => seekFromMouse(ev);
+      const onUp = () => {
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      };
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    });
+
+    timelineInner.addEventListener('mousedown', (e) => {
+      if (e.target === videoTrack || e.target === audioTrack) seekFromMouse(e);
+    });
+
+    // 5. HERRAMIENTAS DE EDICIÓN
+    function splitAtPlayhead() {
+      let target = getSelectedClip();
+      if (!target || currentTime <= target.timelineStart || currentTime >= target.timelineStart + target.duration) {
+        target = getActiveClipAt(audioClips, currentTime) || getActiveClipAt(videoClips, currentTime);
+      }
+      if (!target) return;
+      if (currentTime <= target.timelineStart + 0.1 || currentTime >= target.timelineStart + target.duration - 0.1) return;
+
+      const list = target.type === 'video' ? videoClips : audioClips;
+      const idx = list.indexOf(target);
+      const splitSourceTime = parseFloat(mapTimelineToSource(target, currentTime).toFixed(2));
+      const firstDur = parseFloat((currentTime - target.timelineStart).toFixed(2));
+      const secondDur = parseFloat((target.duration - firstDur).toFixed(2));
+
+      const baseName = target.name.replace(/\s*\(\d+\)$/, '');
+      const secondClip = {
+        id: target.type + '_' + Date.now(),
+        type: target.type,
+        name: `${baseName} (${list.length + 1})`,
+        timelineStart: parseFloat(currentTime.toFixed(2)),
+        duration: secondDur,
+        sourceStart: splitSourceTime,
+        sourceEnd: target.sourceEnd
+      };
+
+      target.duration = firstDur;
+      target.sourceEnd = splitSourceTime;
+
+      list.splice(idx + 1, 0, secondClip);
+      selectedClipId = secondClip.id;
+      saveHistory();
+      renderTimeline();
+    }
+
+    document.getElementById('splitBtn').addEventListener('click', splitAtPlayhead);
+
+    document.getElementById('warpToggleBtn').addEventListener('click', (e) => {
+      isWarpMode = !isWarpMode;
+      const btn = e.currentTarget;
+      btn.classList.toggle('btn-active', isWarpMode);
+      btn.textContent = isWarpMode ? '↔️ Modo: WARP (Estirar Velocidad)' : '📐 Modo: TRIM (Recortar Silencios)';
+    });
+
+    function deleteSelectedClip() {
+      const target = getSelectedClip();
+      if (!target) return;
+      const list = target.type === 'video' ? videoClips : audioClips;
+      const idx = list.indexOf(target);
+      if (idx !== -1) {
+        list.splice(idx, 1);
+        selectedClipId = null;
+        saveHistory();
+        renderTimeline();
+        syncFrameToCurrentTime();
+      }
+    }
+
+    document.getElementById('deleteBtn').addEventListener('click', deleteSelectedClip);
+
+    document.getElementById('rippleBtn').addEventListener('click', () => {
+      [videoClips, audioClips].forEach(list => {
+        list.sort((a, b) => a.timelineStart - b.timelineStart);
+        let cursor = 0;
+        list.forEach(c => {
+          c.timelineStart = parseFloat(cursor.toFixed(2));
+          cursor += c.duration;
+        });
+      });
+      saveHistory();
+      renderTimeline();
+      syncFrameToCurrentTime();
+    });
+
+    document.getElementById('zoomSlider').addEventListener('input', (e) => {
+      pxPerSec = parseInt(e.target.value, 10);
+      renderTimeline();
+    });
+
+    function renderInspector() {
+      const sel = getSelectedClip();
+      if (!sel) {
+        clipInspector.innerHTML = `<div style="color:#94a3b8;">Haz clic en cualquier bloque de Video o Audio para ajustar sus segundos o velocidad.</div>`;
+        return;
+      }
+      const speed = ((sel.sourceEnd - sel.sourceStart) / Math.max(0.05, sel.duration)).toFixed(2);
+      clipInspector.innerHTML = `
+        <div style="font-weight:700; color:#fff; margin-bottom:6px;">${sel.name} (${sel.type.toUpperCase()})</div>
+        <div class="prop-row"><span>Inicio en Línea (s):</span> <input type="number" step="0.1" value="${sel.timelineStart}" onchange="editProp('timelineStart', this.value)"></div>
+        <div class="prop-row"><span>Duración Clip (s):</span> <input type="number" step="0.1" value="${sel.duration}" onchange="editProp('duration', this.value)"></div>
+        <div class="prop-row"><span>Origen Inicio (s):</span> <input type="number" step="0.1" value="${sel.sourceStart}" onchange="editProp('sourceStart', this.value)"></div>
+        <div class="prop-row"><span>Origen Fin (s):</span> <input type="number" step="0.1" value="${sel.sourceEnd}" onchange="editProp('sourceEnd', this.value)"></div>
+        <div class="prop-row" style="margin-top:8px; color:#fbbf24;"><span>Velocidad resultante:</span> <strong>${speed}x</strong></div>
+      `;
+    }
+
+    window.editProp = (field, val) => {
+      const sel = getSelectedClip();
+      if (!sel) return;
+      sel[field] = parseFloat(val);
+      saveHistory();
+      renderTimeline();
+      syncFrameToCurrentTime();
+    };
+
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT') return;
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ') {
+        e.preventDefault();
+        if (e.shiftKey) redo(); else undo();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyY') {
+        e.preventDefault();
+        redo();
+        return;
+      }
+      if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+      if (e.code === 'KeyS') { e.preventDefault(); splitAtPlayhead(); }
+      if (e.code === 'Delete' || e.code === 'Backspace') { e.preventDefault(); deleteSelectedClip(); }
+    });
+
+    function buildProjectPayload(includeRawAssets = false) {
+      const payload = {
+        htmlFile: currentHtmlFileFull || (videoClips[0] ? videoClips[0].name + '.html' : ''),
+        audioFile: currentAudioFileFull || (audioClips[0] ? audioClips[0].name + '.wav' : ''),
+        fps: 30,
+        width: 1080,
+        height: 1920,
+        hideControlsOnExport: true,
+        videoClips,
+        audioClips
+      };
+      if (includeRawAssets) {
+        if (loadedHtmlRawText) payload.htmlContent = loadedHtmlRawText;
+        if (loadedAudioBase64) payload.audioBase64 = loadedAudioBase64;
+      }
+      return payload;
+    }
+
+    function downloadJsonFallback() {
+      const payload = buildProjectPayload(false);
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'proyecto_editado.json';
+      a.click();
+    }
+
+    document.getElementById('exportJsonBtn').addEventListener('click', downloadJsonFallback);
+
+    const renderModal = document.getElementById('renderModal');
+    const renderProgressFill = document.getElementById('renderProgressFill');
+    const renderStatusText = document.getElementById('renderStatusText');
+    const renderGpuBadge = document.getElementById('renderGpuBadge');
+    const downloadMp4Btn = document.getElementById('downloadMp4Btn');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+
+    closeModalBtn.addEventListener('click', () => {
+      renderModal.style.display = 'none';
+      if (animFrame.contentWindow) {
+        animFrame.contentWindow.postMessage({ type: 'SET_EXPORT_MODE', exportMode: false }, '*');
+      }
+    });
+
+    document.getElementById('exportBtn').addEventListener('click', async () => {
+      if (videoClips.length === 0) {
+        alert('Primero carga un archivo de animación (.html).');
+        return;
+      }
+
+      pausePlayback();
+      if (animFrame.contentWindow) {
+        animFrame.contentWindow.postMessage({ type: 'SET_EXPORT_MODE', exportMode: true }, '*');
+      }
+
+      renderModal.style.display = 'flex';
+      renderProgressFill.style.width = '2%';
+      downloadMp4Btn.style.display = 'none';
+      closeModalBtn.style.display = 'none';
+      renderStatusText.textContent = 'Conectando con el motor local GPU (localhost:3456)...';
+
+      try {
+        const pingRes = await fetch('http://localhost:3456/api/ping');
+        if (!pingRes.ok) throw new Error('Servidor no disponible');
+        const pingData = await pingRes.json();
+        renderGpuBadge.textContent = `🎮 Hardware Activo: ${pingData.gpu}`;
+
+        const payload = buildProjectPayload(true);
+        const startRes = await fetch('http://localhost:3456/api/render', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!startRes.ok) {
+          const errData = await startRes.json();
+          throw new Error(errData.error || 'No se pudo iniciar el renderizado');
+        }
+
+        const pollTimer = setInterval(async () => {
+          try {
+            const stRes = await fetch('http://localhost:3456/api/status');
+            const st = await stRes.json();
+            if (st.gpu) renderGpuBadge.textContent = `🎮 Hardware Activo: ${st.gpu}`;
+            renderProgressFill.style.width = `${st.percent || 0}%`;
+            renderStatusText.textContent = st.message || 'Renderizando...';
+
+            if (st.stage === 'done') {
+              clearInterval(pollTimer);
+              renderProgressFill.style.width = '100%';
+              renderStatusText.textContent = '✅ ¡Renderizado completado! Guardado como video_final.mp4 en tu carpeta.';
+              downloadMp4Btn.style.display = 'inline-flex';
+              closeModalBtn.style.display = 'inline-flex';
+            } else if (st.stage === 'error') {
+              clearInterval(pollTimer);
+              renderStatusText.textContent = `❌ Error: ${st.message}`;
+              closeModalBtn.style.display = 'inline-flex';
+            }
+          } catch (e) {}
+        }, 400);
+
+      } catch (err) {
+        renderGpuBadge.textContent = '⚠️ Motor local desconectado';
+        renderStatusText.innerHTML = 'El motor GPU en segundo plano estaba apagado.<br>Haz doble clic en <b>iniciar_estudio_gpu.bat</b> en tu carpeta y vuelve a pulsar <b>🚀 Exportar Video MP4 (GPU)</b>.';
+        closeModalBtn.style.display = 'inline-flex';
+      }
+    });
+
+    document.getElementById('resetClipsBtn').addEventListener('click', () => {
+      if (!confirm('¿Reiniciar las pistas a su duración original sin cortes?')) return;
+      videoClips = [{
+        id: 'v_' + Date.now(),
+        type: 'video',
+        name: currentHtmlFileName || 'Video HTML',
+        timelineStart: 0,
+        duration: 55,
+        sourceStart: 0,
+        sourceEnd: 55
+      }];
+      if (audioBuffer) {
+        const dur = parseFloat(audioBuffer.duration.toFixed(2));
+        audioClips = [{
+          id: 'a_' + Date.now(),
+          type: 'audio',
+          name: (currentAudioFileFull || 'Audio').replace(/\.(wav|mp3|ogg)$/i, ''),
+          timelineStart: 0,
+          duration: dur,
+          sourceStart: 0,
+          sourceEnd: dur
+        }];
+      }
+      selectedClipId = videoClips[0].id;
+      saveHistory();
+      renderTimeline();
+      syncFrameToCurrentTime();
+    });
+
+    // Cargar archivo proyecto_editado.json manualmente si el usuario lo selecciona
+    document.getElementById('jsonInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const data = JSON.parse(await file.text());
+        if (Array.isArray(data.videoClips)) videoClips = data.videoClips;
+        if (Array.isArray(data.audioClips)) audioClips = data.audioClips;
+        if (data.htmlFile) currentHtmlFileFull = data.htmlFile;
+        if (data.audioFile) currentAudioFileFull = data.audioFile;
+        selectedClipId = (videoClips[0] && videoClips[0].id) || (audioClips[0] && audioClips[0].id) || null;
+        saveHistory();
+        renderTimeline();
+        syncFrameToCurrentTime();
+      } catch (err) {
+        alert('El archivo JSON no tiene un formato válido.');
+      }
+    });
+
+    // Restaurar automáticamente los recortes y warps desde el servidor o localStorage al abrir
+    (async function restoreSavedSession() {
+      try {
+        const res = await fetch('http://localhost:3456/api/project');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.videoClips) && data.videoClips.length > 0) {
+            videoClips = data.videoClips;
+            if (Array.isArray(data.audioClips)) audioClips = data.audioClips;
+            if (data.htmlFile) currentHtmlFileFull = data.htmlFile;
+            if (data.audioFile) currentAudioFileFull = data.audioFile;
+            selectedClipId = videoClips[0].id;
+            saveHistory();
+            renderTimeline();
+            return;
+          }
+        }
+      } catch (e) {}
+
+      try {
+        const saved = localStorage.getItem('__estudio_autosave_clips');
+        if (saved) {
+          const data = JSON.parse(saved);
+          if (Array.isArray(data.videoClips) && data.videoClips.length > 0) {
+            videoClips = data.videoClips;
+            if (Array.isArray(data.audioClips)) audioClips = data.audioClips;
+            if (data.htmlFile) currentHtmlFileFull = data.htmlFile;
+            if (data.audioFile) currentAudioFileFull = data.audioFile;
+            selectedClipId = videoClips[0].id;
+          }
+        }
+      } catch (e) {}
+
+      saveHistory();
+      renderTimeline();
+    })();
+  </script>
+</body>
+</html>
